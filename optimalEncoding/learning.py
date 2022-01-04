@@ -1,31 +1,8 @@
 import numpy as np 
 import math
 
-#equivalent of twoDWhite.m file
-
-Nneuron=20; # size of the population
-Nx=2;       # dimesnion of the input
-
-lambd=50;    #membrane leak, renamed from lambda to lambd, to avoid confusion with lambda expressions
-dt=0.001;     #time step
-
-epsr=0.001;  # earning rate of the recurrent connections
-epsf=0.0001; ## learning rate of the feedforward connections FF
-
-alpha=0.18; # scaling of the Feefforward weights
-beta=1/0.9;  #scaling of the recurrent weights
-mu=0.02/0.9; #quadratic cost
 
 
-##Initial connectivity
-
-Fi=0.5*np.random.randn(Nx,Nneuron); #the inital feedforward weights are chosen randomely
-Fi = 1*np.divide(Fi,(np.sqrt(np.ones((Nx,1))*(np.sum(np.multiply(Fi,Fi))))))
-#Fi=1*(Fi./(np.sqrt(np.ones(Nx,1)*(np.sum(Fi.^2)))));  #the FF weights are normalized
-Ci=-0.2*(np.random.rand(Nneuron,Nneuron))-0.5*np.eye(Nneuron); #the initial recurrent conectivity is very weak except for the autapses
-
-Thresh=0.5; #vector of thresholds of the neurons
-[Fs,Cs,F,C,Decs,ErrorC]=Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,Fi,Ci);
 
 #########################################################################################################
 
@@ -173,7 +150,58 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
         Decs[i,:,:]=Dec; # stocking the decoder in Decs
 
     print("Optimal Decoder done")
-    
+
+        ##
+    #################################################################################
+    ###########  Computing Decoding Error, rates through Learning ###################
+    #################################################################################
+    #################################################################################
+    #################################################################################
+    #####
+    ##### In this part we run the different instances of the network using a
+    ##### new test input and we measure the evolution of the dedocding error
+    ##### through learning using the decoders that we computed preciously. We also
+    ##### measure the evolution of the mean firing rate anf the variance of the
+    ##### membrane potential.
+    #####
+    #################################################################################
+    #################################################################################
+    #################################################################################
+    #################################################################################
+
+    print('Computing decoding errors and rates over learning\n')
+    TimeT=10000; # size of the test input
+    MeanPrate=    np.zeros((1,T));     #array of the mean rates over learning
+    Error=        np.zeros((1,T));     #array of the decoding error over learning
+    MembraneVar=  np.zeros((1,T));     #mean membrane potential variance over learning
+    xT=           np.zeros((Nx,TimeT));#target ouput
+
+
+
+    Trials=10; #number of trials
+
+    for r in range (1,Trials): #for each trial
+        InputT = np.transpose(A*(np.random.multivariate_normal(np.zeros((Nx,)),np.eye(Nx),TimeT))); # we genrate a new input
+
+        for k in range (0,Nx-1):
+            InputT[k,:]=np.convolve(InputT[k,:],w,'same'); # we smooth it
+
+
+        for t in range (1,TimeT-1):      
+            xT[:,t]= (1-lamda*dt)*xT[:,t-1]+ dt*InputT[:,t-1]; # ans we comput the target output by leaky inegration of the input       
+
+
+        for i in range (1,T): #for each instance of the network
+            [rOT, OT, VT] = runnet(dt, lamda, np.squeeze(Fs[i,:,:]) ,InputT, np.squeeze(Cs[i,:,:]),Nneuron,TimeT, Thresh);#we run the network with current input InputL
+
+            xestc= np.matmul(np.squeeze(Decs[i,:,:]),rOT); #we deocode the ouptut using the optinal decoders previously computed
+            Error[0,i-1]=Error[0,i-1]+np.sum(np.var(xT-xestc,ddof = 0,axis = 1))/(np.sum(np.var(xT, ddof = 0,axis = 1))*Trials);#we comput the variance of the error normalized by the variance of the target
+            MeanPrate[0,i-1]=MeanPrate[0,i-1]+np.sum(np.sum(OT))/(TimeT*dt*Nneuron*Trials);#we comput the average firing rate per neuron
+            MembraneVar[0,i-1]=MembraneVar[0,i-1]+np.sum(np.var(VT,ddof = 0,axis = 1))/(Nneuron*Trials);# we compute the average membrane potential variance per neuron   
+
+
+    print("Error Calculation Done!\n")
+
     return Fs,Cs,F,C,Decs, ErrorC;
 
 
@@ -214,3 +242,30 @@ def runnet(dt, lamda, F ,Input, C, Nneuron, Ntime, Thresh):
         rO[:,t]=(1-lamda*dt)*rO[:,t-1]+1*O[:,t]; #filtering the spikes
 
     return rO, O, V; 
+
+####################################################################################################33333
+#equivalent of twoDWhite.m file
+
+Nneuron=20; # size of the population
+Nx=2;       # dimesnion of the input
+
+lambd=50;    #membrane leak, renamed from lambda to lambd, to avoid confusion with lambda expressions
+dt=0.001;     #time step
+
+epsr=0.001;  # earning rate of the recurrent connections
+epsf=0.0001; ## learning rate of the feedforward connections FF
+
+alpha=0.18; # scaling of the Feefforward weights
+beta=1/0.9;  #scaling of the recurrent weights
+mu=0.02/0.9; #quadratic cost
+
+
+##Initial connectivity
+
+Fi=0.5*np.random.randn(Nx,Nneuron); #the inital feedforward weights are chosen randomely
+Fi = 1*np.divide(Fi,(np.sqrt(np.ones((Nx,1))*(np.sum(np.multiply(Fi,Fi))))))
+#Fi=1*(Fi./(np.sqrt(np.ones(Nx,1)*(np.sum(Fi.^2)))));  #the FF weights are normalized
+Ci=-0.2*(np.random.rand(Nneuron,Nneuron))-0.5*np.eye(Nneuron); #the initial recurrent conectivity is very weak except for the autapses
+
+Thresh=0.5; #vector of thresholds of the neurons
+[Fs,Cs,F,C,Decs,ErrorC]=Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,Fi,Ci);
