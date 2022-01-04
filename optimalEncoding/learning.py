@@ -1,5 +1,6 @@
 import numpy as np 
 import math
+import matplotlib.pyplot as plt
 
 
 
@@ -199,9 +200,36 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
             MeanPrate[0,i-1]=MeanPrate[0,i-1]+np.sum(np.sum(OT))/(TimeT*dt*Nneuron*Trials);#we comput the average firing rate per neuron
             MembraneVar[0,i-1]=MembraneVar[0,i-1]+np.sum(np.var(VT,ddof = 0,axis = 1))/(Nneuron*Trials);# we compute the average membrane potential variance per neuron   
 
+            
+    ##################################################################################
+###########   Computing distance to  Optimal weights through Learning ############
+##################################################################################
+##################################################################################
+###### 
+###### we compute the distance between the recurrent connectivity matrics
+###### ,stocked in Cs, and FF^T through learning.
+######
+##################################################################################
+##################################################################################
+
+
+ErrorC = np.zeros((1,T));#array of distance between connectivity
+
+for i in range (0,T-1): #for each instance od the network
+    
+    CurrF=np.squeeze(Fs[i,:,:]); 
+    CurrC=np.squeeze(Cs[i,:,:]); 
+    
+    
+    Copt= -np.matmul(np.transpose(CurrF),CurrF); # we comput FF^T
+    optscale = np.trace(np.matmul(CurrC.transpose(),Copt)/np.sum(np.sum(np.power(Copt,2)))); #scaling factor between the current and optimal connectivities
+    Cnorm = np.sum(np.sum(np.power(Copt,2))); #norm of the actual connectivity
+    ErrorC[0,i]=np.sum(np.power(np.sum((CurrC - optscale*Copt)),2))/Cnorm ;#normalized error between the current and optimal connectivity
+
 
     print("Error Calculation Done!\n")
-
+    
+    
     return Fs,Cs,F,C,Decs, ErrorC;
 
 
