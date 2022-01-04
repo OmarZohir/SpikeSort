@@ -213,18 +213,18 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
 ##################################################################################
 
 
-ErrorC = np.zeros((1,T));#array of distance between connectivity
+    ErrorC = np.zeros((1,T));#array of distance between connectivity
 
-for i in range (0,T-1): #for each instance od the network
+    for i in range (0,T-1): #for each instance od the network
     
-    CurrF=np.squeeze(Fs[i,:,:]); 
-    CurrC=np.squeeze(Cs[i,:,:]); 
-    
-    
-    Copt= -np.matmul(np.transpose(CurrF),CurrF); # we comput FF^T
-    optscale = np.trace(np.matmul(CurrC.transpose(),Copt)/np.sum(np.sum(np.power(Copt,2)))); #scaling factor between the current and optimal connectivities
-    Cnorm = np.sum(np.sum(np.power(Copt,2))); #norm of the actual connectivity
-    ErrorC[0,i]=np.sum(np.power(np.sum((CurrC - optscale*Copt)),2))/Cnorm ;#normalized error between the current and optimal connectivity
+        CurrF=np.squeeze(Fs[i,:,:]); 
+        CurrC=np.squeeze(Cs[i,:,:]); 
+
+
+        Copt= -np.matmul(np.transpose(CurrF),CurrF); # we comput FF^T
+        optscale = np.trace(np.matmul(CurrC.transpose(),Copt)/np.sum(np.sum(np.power(Copt,2)))); #scaling factor between the current and optimal connectivities
+        Cnorm = np.sum(np.sum(np.power(Copt,2))); #norm of the actual connectivity
+        ErrorC[0,i]=np.sum(np.power(np.sum((CurrC - optscale*Copt)),2))/Cnorm ;#normalized error between the current and optimal connectivity
 
 
     print("Error Calculation Done!\n")
