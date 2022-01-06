@@ -1,6 +1,5 @@
 import numpy as np 
 import math
-import matplotlib.pyplot as plt
 
 
 
@@ -53,7 +52,7 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
     Fs=np.zeros((T,Nx, Nneuron));      #the array that contains the different instances of feedforward connectivty through learning
     V=np.zeros((Nneuron,)); #voltage vector of the population
     O=0;  #variable indicating the eventual  firing of a spike
-    k=1;  #index of the neuron that fired
+    k=0;  #index of the neuron that fired
     rO=np.zeros((Nneuron,)); #vector of filtered spike train
 
 
@@ -84,17 +83,18 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
             j=j+1;
 
         if (np.mod(i-2,Ntime)==0): #Generating a new iput sequence every Ntime time steps 
-            meandim = np.zeros((1,Nx)).ndim;
-            meanList = meandim*[0];
+            meandim = np.zeros((Nx,))
             cov = np.eye(Nx);
             #Mean has to be passed as a list not an array
-            Input  = np.transpose(np.random.multivariate_normal(meanList,cov,Ntime)); #generating a new sequence of input which a gaussion vector
+            #Input  = np.transpose(np.random.multivariate_normal(meanList,cov,Ntime)); #generating a new sequence of input which a gaussion vector
+            Input  = np.transpose(np.random.multivariate_normal(np.zeros((Nx,)),cov,Ntime)); #generating a new sequence of input which a gaussion vector
+
             for d in range (0,Nx-1):
                 Input[d,:] = A*np.convolve(Input[d,:],w,'same'); #smoothing the previously generated white noise with the gaussian window w
 
 
-        V=(1-lambd*dt)*np.array(V) + dt * np.matmul(np.transpose(F),Input[:,np.mod(i,Ntime)])+ O*C[:,k]+0.001*np.random.randn(Nneuron,); #the membrane potential is a leaky integration of the feedforward input and the spikes
-        x=(1-lambd*dt)*x+dt*Input[:,np.mod(i,Ntime)]; #filtered input
+        V=(1-lamda*dt)*V + dt * np.matmul(np.transpose(F),Input[:,np.mod(i,Ntime)])+ O*C[:,k]+0.001*np.random.randn(Nneuron,); #the membrane potential is a leaky integration of the feedforward input and the spikes
+        x=(1-lamda*dt)*x + dt*Input[:,np.mod(i,Ntime)]; #filtered input
 
         tempArr = V - Thresh-0.01*np.random.randn(Nneuron,)-0;
         m = np.max(tempArr); #finding the neuron with largest membrane potential
@@ -110,7 +110,9 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
             O=0;
 
 
-        rO=(1-lambd*dt)*rO; #filtering the spikes
+        rO=(1-lamda*dt)*rO; #filtering the spikes
+
+    print("learning  completed!\n");
 
     ##
     ##################################################################################
@@ -200,36 +202,9 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
             MeanPrate[0,i-1]=MeanPrate[0,i-1]+np.sum(np.sum(OT))/(TimeT*dt*Nneuron*Trials);#we comput the average firing rate per neuron
             MembraneVar[0,i-1]=MembraneVar[0,i-1]+np.sum(np.var(VT,ddof = 0,axis = 1))/(Nneuron*Trials);# we compute the average membrane potential variance per neuron   
 
-            
-    ##################################################################################
-###########   Computing distance to  Optimal weights through Learning ############
-##################################################################################
-##################################################################################
-###### 
-###### we compute the distance between the recurrent connectivity matrics
-###### ,stocked in Cs, and FF^T through learning.
-######
-##################################################################################
-##################################################################################
-
-
-    ErrorC = np.zeros((1,T));#array of distance between connectivity
-
-    for i in range (0,T-1): #for each instance od the network
-    
-        CurrF=np.squeeze(Fs[i,:,:]); 
-        CurrC=np.squeeze(Cs[i,:,:]); 
-
-
-        Copt= -np.matmul(np.transpose(CurrF),CurrF); # we comput FF^T
-        optscale = np.trace(np.matmul(CurrC.transpose(),Copt)/np.sum(np.sum(np.power(Copt,2)))); #scaling factor between the current and optimal connectivities
-        Cnorm = np.sum(np.sum(np.power(Copt,2))); #norm of the actual connectivity
-        ErrorC[0,i]=np.sum(np.power(np.sum((CurrC - optscale*Copt)),2))/Cnorm ;#normalized error between the current and optimal connectivity
-
 
     print("Error Calculation Done!\n")
-    
-    
+
     return Fs,Cs,F,C,Decs, ErrorC;
 
 
