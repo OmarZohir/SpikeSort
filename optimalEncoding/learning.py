@@ -1,10 +1,12 @@
 import numpy as np 
 import math
+import matplotlib.pyplot as plt
 
 
 
 
 #########################################################################################################
+
 
 
 def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
@@ -13,7 +15,7 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
     ####  recurrent and feedforward connectivity matrices.
     ####
     ####
-    ####  it takes as an argument the time step ,dt, the membrane leak, lambda, 
+    ####  it takes as an argument the time step ,dt, the membrane leak, lamda, 
     ####  the learning rate of the feedforward and the recurrent
     ####  conections epsf and epsr, the scaling parameters alpha and beta of
     ####  the weights, mu the quadratic cost, the number of neurons on the
@@ -83,11 +85,11 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
             j=j+1;
 
         if (np.mod(i-2,Ntime)==0): #Generating a new iput sequence every Ntime time steps 
-            meandim = np.zeros((Nx,))
+            means = np.zeros((Nx,))
             cov = np.eye(Nx);
             #Mean has to be passed as a list not an array
             #Input  = np.transpose(np.random.multivariate_normal(meanList,cov,Ntime)); #generating a new sequence of input which a gaussion vector
-            Input  = np.transpose(np.random.multivariate_normal(np.zeros((Nx,)),cov,Ntime)); #generating a new sequence of input which a gaussion vector
+            Input  = np.transpose(np.random.multivariate_normal(means,cov,Ntime)); #generating a new sequence of input which a gaussion vector
 
             for d in range (0,Nx-1):
                 Input[d,:] = A*np.convolve(Input[d,:],w,'same'); #smoothing the previously generated white noise with the gaussian window w
@@ -202,9 +204,154 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
             MeanPrate[0,i-1]=MeanPrate[0,i-1]+np.sum(np.sum(OT))/(TimeT*dt*Nneuron*Trials);#we comput the average firing rate per neuron
             MembraneVar[0,i-1]=MembraneVar[0,i-1]+np.sum(np.var(VT,ddof = 0,axis = 1))/(Nneuron*Trials);# we compute the average membrane potential variance per neuron   
 
+            
+    ##################################################################################
+###########   Computing distance to  Optimal weights through Learning ############
+##################################################################################
+##################################################################################
+###### 
+###### we compute the distance between the recurrent connectivity matrics
+###### ,stocked in Cs, and FF^T through learning.
+######
+##################################################################################
+##################################################################################
+
+
+    ErrorC = np.zeros((1,T));#array of distance between connectivity
+
+    for i in range (0,T-1): #for each instance od the network
+    
+        CurrF=np.squeeze(Fs[i,:,:]); 
+        CurrC=np.squeeze(Cs[i,:,:]); 
+
+
+        Copt= -np.matmul(np.transpose(CurrF),CurrF); # we comput FF^T
+        optscale = np.trace(np.matmul(CurrC.transpose(),Copt)/np.sum(np.sum(np.power(Copt,2)))); #scaling factor between the current and optimal connectivities
+        Cnorm = np.sum(np.sum(np.power(Copt,2))); #norm of the actual connectivity
+        ErrorC[0,i]=np.sum(np.power(np.sum((CurrC - optscale*Copt)),2))/Cnorm ;#normalized error between the current and optimal connectivity
+
 
     print("Error Calculation Done!\n")
+    
+    print("Started Plotting \n")
+        ##
+    #################################################################################
+    ###########  Plotting Decoding Error, rates through Learning  ###################
+    #################################################################################
+    #################################################################################
+    ################################################################################
 
+    #divide into 3 vertically stacked subplots 
+    lines = 3; #Number of subplots
+
+    fig, (ax1, ax2, ax3) = plt.subplots(lines, figsize=(10,20));
+    fig.subplots_adjust(hspace=0.5);
+
+    sequence = np.linspace(1,T,T);
+    xtime = dt * np.power(2,sequence);
+    ax1.loglog( xtime , np.squeeze(Error) , 'k');
+    ax1.set_xlabel('time');
+    ax1.set_ylabel('Decoding Error');
+    ax1.set_title('Evolution of the Decoding Error Through Learning')
+
+
+    ax2.loglog( xtime , np.squeeze(MeanPrate), 'k');
+    ax2.set_xlabel('time');
+    ax2.set_ylabel('Mean Rate per neuron');
+    ax2.set_title('Evolution of the Mean Population Firing Rate Through Learning ');
+
+
+    ax3.loglog( xtime , np.squeeze(MembraneVar), 'k');
+    ax3.set_xlabel('time');
+    ax3.set_ylabel('Voltage Variance per Neuron');
+    ax3.set_title('Evolution of the Variance of the Membrane Potential ');
+
+    plt.savefig("DecError,FiringRate,Var.jpg");
+    
+        ##################################################################################
+    ###############################  Plotting Weights  ###############################
+    ##################################################################################
+    ##################################################################################
+    ##################################################################################
+
+
+
+
+    lines=3;
+    fsize=11; 
+
+    #2 separate figures, one for the weight convergence and one for the Feedforward(F) and optimal decoder,
+    #before and after learning
+
+    ##Plotting the evolution of distance between the recurrent weights and FF^T through learning
+    plt.loglog(sequence, np.squeeze(ErrorC), 'k');
+    plt.xlabel('time');
+    plt.ylabel('Distance to optimal weights');
+    plt.title('Weight Convergence'); 
+
+    plt.show();
+    plt.savefig('WeightConvergence.jpg');
+
+
+    #plotting feedforward weights before and after learning
+    fig, axs = plt.subplots(lines, 2, figsize=(16,24));
+    Fi= np.squeeze(Fs[0,:,:]); 
+    axs[0,0].plot(Fi[0,:],Fi[1,:],'.k');  
+    axs[0,0].set_xlabel('FF Weights Component 1');
+    axs[0,0].set_ylabel('FF Weights Component 2');
+    axs[0,0].set_title('Before Learning');
+    axs[0,0].plot(0,0,'+');
+    axs[0,0].set_ylim(-1,1);
+    axs[0,0].set_xlim(-1,1);
+
+
+    axs[0,1].plot(F[0,:],F[1,:],'.k');  
+    axs[0,1].set_xlabel('FF Weights Component 1');
+    axs[0,1].set_ylabel('FF Weights Component 2');
+    axs[0,1].set_title('After Learning');
+    axs[0,1].plot(0,0,'+');
+    axs[0,1].set_ylim(-1,1);
+    axs[0,1].set_xlim(-1,1);
+
+
+    #scatter plot of C and FF^T Before learning
+    Ci=np.squeeze(Cs[1,:,:]); 
+    axs[1,0].plot(Ci, -1*np.matmul(np.transpose(Fi),Fi), '.k');
+    axs[1,0].plot(0,0,'+');
+    axs[1,0].set_ylim(-1,1);
+    axs[1,0].set_xlim(-1,1);
+    axs[1,0].set_xlabel('FF^T');
+    axs[1,0].set_ylabel('Learned Rec weights');
+
+    #scatter plot of C and FF^T After learning
+    axs[1,1].plot(C, -1*np.matmul(np.transpose(F),F), '.k');
+    axs[1,1].plot(0,0,'+');
+    axs[1,1].set_ylim(-1,1);
+    axs[1,1].set_xlim(-1,1);
+    axs[1,1].set_xlabel('FF^T');
+    axs[1,1].set_ylabel('Learned Rec weights');
+
+
+    #scatter plot of optimal decoder and F^T before learning
+    axs[2,0].plot(np.squeeze(Decs[0,:,:]),Fi,'.k');
+    axs[2,0].plot(0,0,'+');
+    axs[2,0].set_ylim(-1,1);
+    axs[2,0].set_xlim(-1,1);
+    axs[2,0].set_xlabel('Optimal decoder');
+    axs[2,0].set_ylabel('F^T');
+
+    #scatter plot of optimal decoder and F^T After learning
+    axs[2,1].plot(np.squeeze(Decs[T-1,:,:]),F,'.k');
+    axs[2,1].plot(0,0,'+');
+    axs[2,1].set_ylim(-1,1);
+    axs[2,1].set_xlim(-1,1);
+    axs[2,1].set_xlabel('Optimal decoder');
+    axs[2,1].set_ylabel('F^T');
+
+    plt.savefig('FeedfowardWeightsCAndOptimalDec.jpg');
+    
+    print("Plotting Done\n")
+    
     return Fs,Cs,F,C,Decs, ErrorC;
 
 
@@ -252,7 +399,7 @@ def runnet(dt, lamda, F ,Input, C, Nneuron, Ntime, Thresh):
 Nneuron=20; # size of the population
 Nx=2;       # dimesnion of the input
 
-lambd=50;    #membrane leak, renamed from lambda to lambd, to avoid confusion with lambda expressions
+lamda=50;    #membrane leak, renamed from lamda to lamda, to avoid confusion with lamda expressions
 dt=0.001;     #time step
 
 epsr=0.001;  # earning rate of the recurrent connections
