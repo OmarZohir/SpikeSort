@@ -413,7 +413,7 @@ mu=0.02/0.9; #quadratic cost
 ##Initial connectivity
 
 Fi=0.5*np.random.randn(Nx,Nneuron); #the inital feedforward weights are chosen randomely
-Fi = 1*np.divide(Fi,(np.sqrt(np.ones((Nx,1))*(np.sum(np.multiply(Fi,Fi))))))
+Fi = 1*np.divide(Fi,(np.sqrt(np.ones((Nx,1))*(np.sum(np.power(Fi,2),axis = 0))))); #the FF weights are normalized
 #Fi=1*(Fi./(np.sqrt(np.ones(Nx,1)*(np.sum(Fi.^2)))));  #the FF weights are normalized
 Ci=-0.2*(np.random.rand(Nneuron,Nneuron))-0.5*np.eye(Nneuron); #the initial recurrent conectivity is very weak except for the autapses
 
