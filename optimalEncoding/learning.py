@@ -97,7 +97,8 @@ def Learning(dt,lamda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C):
 
         V=(1-lamda*dt)*V + dt * np.matmul(np.transpose(F),Input[:,np.mod(i,Ntime)])+ O*C[:,k]+0.001*np.random.randn(Nneuron,); #the membrane potential is a leaky integration of the feedforward input and the spikes
         x=(1-lamda*dt)*x + dt*Input[:,np.mod(i,Ntime)]; #filtered input
-
+        breakpoint();
+        
         tempArr = V - Thresh-0.01*np.random.randn(Nneuron,)-0;
         m = np.max(tempArr); #finding the neuron with largest membrane potential
         k = np.argmax(tempArr);
