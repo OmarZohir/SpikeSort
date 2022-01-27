@@ -13,7 +13,7 @@ function [W,A] = sincosmix(t, n_max, n_min, f_min, f_max)
 if nargin < 3
     n_max = 50; n_min = 1; 
     f_min = 0; f_max = 40000;
-else if nargin < 5
+elseif nargin < 5
     f_min = 0; f_max = 40000;
 end
 
