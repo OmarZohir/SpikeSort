@@ -1,4 +1,4 @@
-function [Fs,Cs,F,C,Decs, ErrorC]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C)
+function [Fs,Cs,F,C,Decs, ErrorC, RMSE, MeanPrate]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron,Nx, Thresh,F,C)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -61,20 +61,15 @@ Id=eye(Nneuron); %identity matrix
 A=2000; %Amplitude of the input
 sigma=abs(30); %std of the smoothing kernel
 w=(1/(sigma*sqrt(2*pi)))* exp(-(([1:1000]-500).^2)/(2*sigma.^2));%gaussian smoothing kernel used to smooth the input
-w=w/sum(w); % normalization of the kernel
-
-%imagesc(w)
-%colorbar
+w=w/sum(w); % normalization oof the kernel
 
 
 j=1; % index of the (2^j)-time step (exponential times)
 l=1;
 
 fprintf('%d percent of the learning  completed\n',0)
- 
 spikeVector = zeros(Nneuron,TotTime-1);
-spikeAnalog = zeros(Nneuron,TotTime-1);
-inputAnalog = zeros(Nx, TotTime-1);
+spikeAnalog = zeros(Nneuron,TotTime-1); 
 for i=2:TotTime
     
     if ((i/TotTime)>(l/100))
@@ -89,21 +84,13 @@ for i=2:TotTime
     end
     
     if (mod(i-2,Ntime)==0) %Generating a new iput sequence every Ntime time steps 
-        %Input=(mvnrnd(zeros(1,Nx),eye(Nx),Ntime))'; %generating a new sequence of input which a gaussion vector
-        %for d=1:Nx
-        %    Input(d,:)=A*conv(Input(d,:),w,'same'); %smoothing the previously generated white noise with the gaussian window w
-        %end
-        %imagesc(Input);
-        %colorbar;
-        time = 0:dt:Ntime*dt-dt;
-        fc = 2/(Ntime*dt);
-        Input(1,:) = 500*sin(2*pi*fc*time);
-        Input(2,:) = 500*cos(2*pi*fc*time);
-        
+        Input=(mvnrnd(zeros(1,Nx),eye(Nx),Ntime))'; %generating a new sequence of input which a gaussion vector
+        for d=1:Nx
+            Input(d,:)=A*conv(Input(d,:),w,'same'); %smoothing the previously generated white noise with the gaussian window w
+        end     
     end
     
-
-    V=(1-lambda*dt)*V + dt*F'*Input(:,mod(i,Ntime)+1)+ O*C(:,k)+0.001*randn(Nneuron,1);%the membrane potential is a leaky integration of the feedforward input and the spikes
+    V=(1-lambda*dt)*V + dt*F'*Input(:,mod(i,Ntime)+1)+ O*C(:,k)+0.001*randn(Nneuron,1); %the membrane potential is a leaky integration of the feedforward input and the spikes
     x=(1-lambda*dt)*x+dt*Input(:,mod(i,Ntime)+1); %filtered input
          
     [m,k]= max(V - Thresh-0.01*randn(Nneuron,1)-0); %finding the neuron with largest membrane potential
@@ -115,13 +102,12 @@ for i=2:TotTime
         C(:,k)=C(:,k) -(epsr)*(beta*(V+ mu*rO)+C(:,k)+mu*Id(:,k));%updating the recurrent weights
         rO(k,1)=rO(k,1)+1; %updating the filtered spike train
         spikeVector(k,i-1) = 1;
-       
     else
         O=0;
     end
     
     rO=(1-lambda*dt)*rO; %filtering the spikes
-    spikeAnalog(:,i-1) = rO;
+    spikeAnalog(:,i-1) = rO;   
 end
 
 
@@ -147,39 +133,37 @@ imagesc(spikeAnalog);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fprintf('Computing optimal decoders\n')
 TimeL=50000; % size of the sequence  of the input that will be fed to neuron
-timeL = 0:dt:(TimeL-1)*dt;
 xL=zeros(Nx,TimeL); % the target output/input
 Decs=zeros(T,Nx,Nneuron);% array where the decoding weights for each instance of the network will be stocked
-%InputL=0.3*A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeL))'; %generating a new input sequence
-%time = 0:dt:Ntime*dt-dt
-fc = 2/(Ntime*dt);
-InputL(1,:) = 500*sin(2*pi*fc*timeL);
-InputL(2,:) = 500*cos(2*pi*fc*timeL);
-% 
-% for k=1:Nx
-%     InputL(k,:)=conv(InputL(k,:),w,'same'); %smoothing the input as before
-% end
-
- for t=2:TimeL
-     xL(:,t)= (1-lambda*dt)*xL(:,t-1)+ dt*InputL(:,t-1); %compute the target output by a leaky integration of the input
- end
-
+InputL=0.3*A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeL))'; %generating a new input sequence
 spikeOutputs = zeros(T,Nneuron,TimeL);
 spikeAnalog = zeros(T,Nneuron,TimeL);
+
+for k=1:Nx
+    InputL(k,:)=conv(InputL(k,:),w,'same'); %smoothing the input as before
+end
+
+for t=2:TimeL
+    
+    xL(:,t)= (1-lambda*dt)*xL(:,t-1)+ dt*InputL(:,t-1); %compute the target output by a leaky integration of the input
+    
+end
+
 for i=1:T
     [rOL, O, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh); % running the network with the previously generated input for the i-th instanc eof the network
     spikeOutputs(i,:,:) = O;
     spikeAnalog(i,:,:) = rOL;
-    Dec=(rOL'\xL')'; % computing e(the optimal decoder that solves xL=Dec*rOL
+    Dec=(rOL'\xL')'; % computing the optimal decoder that solves xL=Dec*rOL
     Decs(i,:,:)=Dec; % stocking the decoder in Decs
 end
 
-print("runned inferece");
+fprintf("Decoder Learning done\n");
 %imagesc(squeeze(spikeAnalog(1,:,:)));
 for i = 1:T
     reconstruction = (squeeze(Decs(i,:,:))*squeeze(spikeAnalog(i,:,:)));
     [RecAligned(i,:,:), InputAligned(i,:,:), RMSE(:,i)] = SmoothNormAlign(reconstruction, InputL, Nx, TimeL);
 end
+
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -201,27 +185,30 @@ end
 
 fprintf('Computing decoding errors and rates over learning\n')
 TimeT=10000; % size of the test input
-timeT = 0:dt:(TimeT-1)*dt;
 MeanPrate=zeros(1,T);%array of the mean rates over learning
 Error=zeros(1,T);%array of the decoding error over learning
 MembraneVar=zeros(1,T);%mean membrane potential variance over learning
 xT=zeros(Nx,TimeT);%target ouput
-fc = 2/(Ntime*dt);
-InputT(1,:) = 500*sin(2*pi*fc*timeT);
-InputT(2,:) = 500*cos(2*pi*fc*timeT);
+
 
 
 Trials=10; %number of trials
 
-for r=1:Trials %for each trial  
+for r=1:Trials %for each trial
+    InputT=A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeT))'; % we genrate a new input
+    
+    for k=1:Nx
+        InputT(k,:)=conv(InputT(k,:),w,'same'); % we wmooth it
+    end
+    
+    for t=2:TimeT      
+        xT(:,t)= (1-lambda*dt)*xT(:,t-1)+ dt*InputT(:,t-1); % ans we comput the target output by leaky inegration of the input       
+    end    
     
     for i=1:T %for each instance of the network
         [rOT, OT, VT] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh);%we run the network with current input InputL
         
         xestc=squeeze(Decs(i,:,:))*rOT; %we deocode the ouptut using the optinal decoders previously computed
-        %plot(xestc, 'k');
-        %hold off
-        %plot(xT, 'g');
         Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials);%we comput the variance of the error normalized by the variance of the target
         MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);%we comput the average firing rate per neuron
         MembraneVar(1,i)=MembraneVar(1,i)+sum(var(VT,0,2))/(Nneuron*Trials);% we compute the average membrane potential variance per neuron     
@@ -241,7 +228,7 @@ figure
 set(gcf,'Units','centimeters')
 xSize = 24;  ySize =34;
 xLeft = (21-xSize)/4; yTop = (30-ySize)/4;
-set(gcf,'Position',[xLeft yTop 10 20]); %centers on A4 paper
+set(gcf,'Position',[xLeft yTop xSize ySize]); %centers on A4 paper
 set(gcf, 'Color', 'w');
 
 lines=3;
@@ -249,7 +236,6 @@ fsize=11;
 
 %plotting the error
 h=subplot(lines,1,1);
-
 ax=get(h,'Position');
 loglog((2.^(1:T(1,1)))*dt,Error,'k');
 set(gca,'FontSize',fsize,'FontName','Helvetica')
@@ -327,7 +313,7 @@ figure
 set(gcf,'Units','centimeters')
 xSize = 24;  ySize =34;
 xLeft = (21-xSize)/4; yTop = (30-ySize)/4;
-set(gcf,'Position',[xLeft yTop 10 20]); %centers on A4 paper
+set(gcf,'Position',[xLeft yTop xSize ySize]); %centers on A4 paper
 set(gcf, 'Color', 'w');
 
 

@@ -181,6 +181,7 @@ for i = 1:T
     [RecAligned(i,:,:), InputAligned(i,:,:), RMSE(:,i)] = SmoothNormAlign(reconstruction, InputL, Nx, TimeL);
 end
 
+
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%  Computing Decoding Error, rates through Learning %%%%%%%%%%%%%%%%%%%
@@ -212,17 +213,13 @@ InputT(2,:) = 500*cos(2*pi*fc*timeT);
 
 
 Trials=10; %number of trials
-TotalSpikes = zeros(Trials,T);
+
 for r=1:Trials %for each trial  
     
     for i=1:T %for each instance of the network
         [rOT, OT, VT] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh);%we run the network with current input InputL
         
         xestc=squeeze(Decs(i,:,:))*rOT; %we deocode the ouptut using the optinal decoders previously computed
-        %plot(xestc, 'k');
-        %hold off
-        %plot(xT, 'g');
-        
         Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials);%we comput the variance of the error normalized by the variance of the target
         MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);%we comput the average firing rate per neuron
         MembraneVar(1,i)=MembraneVar(1,i)+sum(var(VT,0,2))/(Nneuron*Trials);% we compute the average membrane potential variance per neuron     

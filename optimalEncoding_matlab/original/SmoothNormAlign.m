@@ -30,9 +30,12 @@ function [RecAligned, InputAligned, RMSE] = SmoothNormAlign(reconstruction, Inpu
     
     %%The Input shall be delayed by D samples, discard the first 5*D samples in
     %%both, and discard the last D samples in InputTemp
-    InputAligned = zeros(Nx,Time - 5*abs(D));
-    RecAligned = zeros(Nx,Time - 5*abs(D));
-    startpoint = abs(5*D)+1;
+    %InputAligned = zeros(Nx,Time - 5*abs(D));
+    %RecAligned = zeros(Nx,Time - 5*abs(D));
+    %an estimate of size of abs(D) being around 20 samples
+    InputAligned = zeros(Nx,Time - 100);
+    RecAligned = zeros(Nx,Time - 100);
+    startpoint = abs(100)+1;
     endpoint = Time;
     InputAligned = InputTemp(:,startpoint:endpoint);
     RecAligned = RecTemp(:,startpoint:endpoint);

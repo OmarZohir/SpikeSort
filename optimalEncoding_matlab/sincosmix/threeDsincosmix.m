@@ -6,7 +6,7 @@ Nx=3;       %dimesnion of the input
 lambda=50;    %membrane leak
 dt=0.001;     %time step
 
-epsr=0.001;  % earning rate of the recurrent connections
+epsr=0.001;  % learning rate of the recurrent connections
 epsf=0.0001; %% learning rate of the feedforward connections FF
 
 alpha=0.18;  %scaling of the Feedforward weights
