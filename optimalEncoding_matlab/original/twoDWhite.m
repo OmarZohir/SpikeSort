@@ -32,6 +32,7 @@ for i = 1:length(Nneuron)
     TotalSpikesByNetwork(i,:) = Nneuron(i)*MeanPrate(i,:);
 end
 %% Plotting Total Spikes per network vs # of Neurons
+figure
 loglog((2.^(1:length(TotalSpikesByNetwork)))*dt,TotalSpikesByNetwork');
 lgd = legend('10', '20', '30');
 title(lgd,'# of Neurons','FontSize',12)

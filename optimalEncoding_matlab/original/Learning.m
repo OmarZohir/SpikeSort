@@ -35,7 +35,7 @@ function [Fs,Cs,F,C,Decs, ErrorC, RMSE, MeanPrate]=Learning(dt,lambda,epsr,epsf,
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%%
+%% Learning 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%   Learning the optinal connectivities  %%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -112,9 +112,9 @@ end
 
 
 fprintf('Learning  completed\n')
-imagesc(spikeVector);
-hold off
-imagesc(spikeAnalog);
+%imagesc(spikeVector);
+%hold off
+%imagesc(spikeAnalog);
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%   Computing Optimal Decoders  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -149,6 +149,8 @@ for t=2:TimeL
     
 end
 
+spikeOutputs = zeros(T,Nneuron,TimeL);
+spikeAnalog = zeros(T,Nneuron,TimeL);
 for i=1:T
     [rOL, O, ~] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputL, squeeze(Cs(i,:,:)),Nneuron,TimeL, Thresh); % running the network with the previously generated input for the i-th instanc eof the network
     spikeOutputs(i,:,:) = O;
@@ -164,7 +166,41 @@ for i = 1:T
     [RecAligned(i,:,:), InputAligned(i,:,:), RMSE(:,i)] = SmoothNormAlign(reconstruction, InputL, Nx, TimeL);
 end
 
+figure; 
+subplot(3,1,1);plot(InputL(1,:));hold on; plot(InputL(2,:));
+subplot(3,1,2);imagesc(O);
+subplot(3,1,3); plot(reconstruction(1,:)); hold on; plot(reconstruction(2,:));
+%% Determining optimal weights and optimal decoder, to be used for inference
+% Lowest RMSE = 0, highest RMSE = 1;
+NormalizedRMSE = (RMSE - min(RMSE))/(max(RMSE) - min(RMSE));
+TotalSpikes = sum(sum(spikeOutputs,3),2);
+NormalizedSpiking = (TotalSpikes - min(TotalSpikes))/(max(TotalSpikes)-min(TotalSpikes));
+OptimalCriteria = NormalizedRMSE + NormalizedSpiking';
+[m, OptimalIdx] = min(OptimalCriteria);
+Foptimal = Fs(OptimalIdx,:, :);
+Coptimal = Cs(OptimalIdx,:, :);
+%% Plotting Input vs Reconstructed signal from the decoder, from the most sparse point
+OptimalRecAligned = squeeze(RecAligned(OptimalIdx,:,:));
+OptimalInputAligned = squeeze(InputAligned(OptimalIdx,:,:));
+OptimalRMSE = RMSE(:,OptimalIdx);
 
+time = 2000*dt:dt:3000*dt;
+figure()
+plot(time, OptimalInputAligned(1,2000:3000));
+hold on
+plot(time, OptimalRecAligned(1,2000:3000));
+hold on
+plot(time, OptimalInputAligned(2,2000:3000));
+plot(time, OptimalRecAligned(2,2000:3000));
+lgd = legend('Input signal: Sin','Reconstructed signal: Sin', 'Input signal: Cos','Reconstructed signal: Cos');
+xlabel("Time(s)")
+ylabel("Amplitude");
+GraphTitle = "Signal reconstruction from sparse optimal linear decoder, # Neurons = " + num2str(Nneuron); 
+title(GraphTitle);
+annotation('textbox', [0.75, 0.1, 0.1, 0.1], 'String', "RMSE = " + OptimalRMSE);
+GraphName = "GaussianDist_InputSignalvsReconstruct_Decoder_" + num2str(Nneuron) + ".png";
+set(gcf, 'Position', get(0, 'Screensize'));
+saveas(gcf, GraphName);
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%  Computing Decoding Error, rates through Learning %%%%%%%%%%%%%%%%%%%
@@ -189,11 +225,12 @@ MeanPrate=zeros(1,T);%array of the mean rates over learning
 Error=zeros(1,T);%array of the decoding error over learning
 MembraneVar=zeros(1,T);%mean membrane potential variance over learning
 xT=zeros(Nx,TimeT);%target ouput
+OTAll = zeros(T,Nneuron,TimeT); %All spikes by all instances of the network in time
 
 
 
 Trials=10; %number of trials
-
+OTAll = zeros(T,Nneuron,TimeT);
 for r=1:Trials %for each trial
     InputT=A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeT))'; % we genrate a new input
     
@@ -207,7 +244,7 @@ for r=1:Trials %for each trial
     
     for i=1:T %for each instance of the network
         [rOT, OT, VT] = runnet(dt, lambda, squeeze(Fs(i,:,:)) ,InputT, squeeze(Cs(i,:,:)),Nneuron,TimeT, Thresh);%we run the network with current input InputL
-        
+        OTAll(i,:,:) = OT; 
         xestc=squeeze(Decs(i,:,:))*rOT; %we deocode the ouptut using the optinal decoders previously computed
         Error(1,i)=Error(1,i)+sum(var(xT-xestc,0,2))/(sum(var(xT,0,2))*Trials);%we comput the variance of the error normalized by the variance of the target
         MeanPrate(1,i)=MeanPrate(1,i)+sum(sum(OT))/(TimeT*dt*Nneuron*Trials);%we comput the average firing rate per neuron
@@ -215,8 +252,29 @@ for r=1:Trials %for each trial
     end
     
 end
+%% Plotting Spiking Activity during testing using Decoders sampled at different learning durations
+SpikesDec1 = squeeze(OTAll(1,:,:));
+SpikesDecLast = squeeze(OTAll(OptimalIdx,:,:));
 
+figure()
+subplot(1,2,1);
+%plotting the spikes after training for short time (i.e., first sample of decoder)
+imagesc(SpikesDec1);
+subplotTitle = " Before training, #spikes = " + num2str(sum(sum(SpikesDec1)));
+title(subplotTitle);
 
+%plotting the spikes at the last sampled decoder (i.e., after ~all learning
+%has been done)
+subplot(1,2,2);
+imagesc(SpikesDecLast);
+subplotTitle = " After training, #spikes = " + num2str(sum(sum(SpikesDecLast)));
+title(subplotTitle);
+
+GridTitle = "Spiking Activity comparison before and after training, #Neurons = " + num2str(Nneuron);
+sgtitle(GridTitle);
+SpikeActivityFileName = "SpikeActivity_N" + num2str(Nneuron) + ".png";
+set(gcf, 'Position', get(0, 'Screensize'));
+saveas(gcf, SpikeActivityFileName);
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%  Plotting Decoding Error, rates through Learning  %%%%%%%%%%%%%%%%%%%
@@ -270,6 +328,9 @@ title('Evolution of the Variance of the Membrane Potential ')
 set(gca,'ticklength',[0.01 0.01]/ax(3))
 box off
 
+GraphFileName = "GaussianDist_Error_Rate_Var_N" + num2str(Nneuron) + ".png";
+set(gcf, 'Position', get(0, 'Screensize'));
+saveas(gcf, GraphFileName);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -420,6 +481,10 @@ axis([-1, 1 -1 1]);
 xlabel('Optimal decoder')
 ylabel('F^T')
 axis square
+
+GraphFileName = "GaussianDist_Weights_decoder_N" + num2str(Nneuron) + ".png";
+set(gcf, 'Position', get(0, 'Screensize'));
+saveas(gcf, GraphFileName);
 
 end
 

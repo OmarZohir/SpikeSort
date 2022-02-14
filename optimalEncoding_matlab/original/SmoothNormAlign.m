@@ -15,17 +15,17 @@ function [RecAligned, InputAligned, RMSE] = SmoothNormAlign(reconstruction, Inpu
     %needs the signal processing toolbox
     %Align each dimension on its own
      %For Smoothened input, the delay on both dimensions shall be the same
-     for i=i:size(InputLNorm,1)
-         [RecTemp(i,:), InputTemp(i,:),D] = alignsignals(RecNormalized(i,:), InputLNorm(i,:));
-     end
+     %for i=1:size(InputLNorm,1)
+     %    [RecTemp(i,:), InputTemp(i,:),D] = alignsignals(RecNormalized(i,:), InputLNorm(i,:));
+     %end
     
     %For Non-smoothened input, delay only a single dimension, then apply
     %the same delay to the second (other) dimension(s)
-%     [RecTemp(1,:), InputTemp(1,:),D] = alignsignals(RecNormalized(1,:), InputLNorm(1,:));
-%     for i= 2:size(InputLNorm,1)
-%         InputTemp(i,:) = [zeros(1,abs(D)) InputLNorm(i,:)]; 
-%         RecTemp(i,:) = RecNormalized(i,:);
-%     end
+     [RecTemp(1,:), InputTemp(1,:),D] = alignsignals(RecNormalized(1,:), InputLNorm(1,:));
+     for i= 2:size(InputLNorm,1)
+         InputTemp(i,:) = [zeros(1,abs(D)) InputLNorm(i,:)]; 
+         RecTemp(i,:) = RecNormalized(i,:);
+     end
     
     
     %%The Input shall be delayed by D samples, discard the first 5*D samples in
