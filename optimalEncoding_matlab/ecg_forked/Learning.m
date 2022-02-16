@@ -84,10 +84,20 @@ for i=2:TotTime
     end
     
     if (mod(i-2,Ntime)==0) %Generating a new iput sequence every Ntime time steps 
-        Input=(mvnrnd(zeros(1,Nx),eye(Nx),Ntime))'; %generating a new sequence of input which a gaussion vector
+        Input= multichannel_ecg(2,Ntime); %generating a new sequence of input which a gaussion vector
         for d=1:Nx
             Input(d,:)=A*conv(Input(d,:),w,'same'); %smoothing the previously generated white noise with the gaussian window w
-        end     
+        end   
+        
+        if min(Input) > 0
+            sign = 0;
+        else
+            sign = 1;
+        end
+        
+        Input = Input - (-1)^sign * abs(min(Input));
+        Input = Input - max(Input)/2;
+        Input = Input * 3/10;
     end
     
     V=(1-lambda*dt)*V + dt*F'*Input(:,mod(i,Ntime)+1)+ O*C(:,k)+0.001*randn(Nneuron,1); %the membrane potential is a leaky integration of the feedforward input and the spikes
@@ -135,7 +145,8 @@ fprintf('Computing optimal decoders\n')
 TimeL=50000; % size of the sequence  of the input that will be fed to neuron
 xL=zeros(Nx,TimeL); % the target output/input
 Decs=zeros(T,Nx,Nneuron);% array where the decoding weights for each instance of the network will be stocked
-InputL=0.3*A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeL))'; %generating a new input sequence
+%InputL=0.3*A*(mvnrnd(zeros(1,Nx),eye(Nx),TimeL))'; %generating a new input sequence
+InputL = 0.3*A*multichannel_ecg(2,TimeL);
 spikeOutputs = zeros(T,Nneuron,TimeL);
 spikeAnalog = zeros(T,Nneuron,TimeL);
 
@@ -170,9 +181,9 @@ for i = 1:Nx
     RecNormalized(i,:) = reconstruction(i,:)/max(reconstruction(i,:));
     InputLNorm(i,:) = InputL(i,:)/max(InputL(i,:));
 end
-figure;
-plot(InputLNorm(1,:));hold on; plot(InputLNorm(2,:));
-plot(RecNormalized(1,:)); hold on; plot(RecNormalized(2,:));
+% figure;
+% plot(InputLNorm(1,:));hold on; plot(InputLNorm(2,:));
+% plot(RecNormalized(1,:)); hold on; plot(RecNormalized(2,:));
 
 
 %% Determining optimal weights and optimal decoder, to be used for inference
@@ -194,16 +205,17 @@ figure()
 plot(time, OptimalInputAligned(1,2000:3000));
 hold on
 plot(time, OptimalRecAligned(1,2000:3000));
-hold on
-plot(time, OptimalInputAligned(2,2000:3000));
-plot(time, OptimalRecAligned(2,2000:3000));
+%hold on
+%plot(time, OptimalInputAligned(2,2000:3000));
+%plot(time, OptimalRecAligned(2,2000:3000));
+SpikeTotalInFig = sum(spikeOutputs(OptimalIdx,:,2000:3000),'all');
 lgd = legend('Input signal: Sin','Reconstructed signal: Sin', 'Input signal: Cos','Reconstructed signal: Cos');
 xlabel("Time(s)")
 ylabel("Amplitude");
-GraphTitle = "Signal reconstruction from sparse optimal linear decoder, # Neurons = " + num2str(Nneuron); 
+GraphTitle = "Reconst, # Neurons = " + num2str(Nneuron) + ", # Spikes: " + num2str(SpikeTotalInFig) + ", lambda: " + num2str(lambda); 
 title(GraphTitle);
 annotation('textbox', [0.75, 0.1, 0.1, 0.1], 'String', "RMSE = " + OptimalRMSE);
-GraphName = "GaussianDist_InputSignalvsReconstruct_Decoder_" + num2str(Nneuron) + ".png";
+GraphName = "ECG_InputSignalvsReconstruct_Decoder_" + num2str(Nneuron) + "_lambda_" + num2str(lambda) + ".png";
 set(gcf, 'Position', get(0, 'Screensize'));
 saveas(gcf, GraphName);
 %%
