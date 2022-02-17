@@ -209,7 +209,7 @@ plot(time, OptimalRecAligned(1,2000:3000));
 %plot(time, OptimalInputAligned(2,2000:3000));
 %plot(time, OptimalRecAligned(2,2000:3000));
 SpikeTotalInFig = sum(spikeOutputs(OptimalIdx,:,2000:3000),'all');
-lgd = legend('Input signal: Sin','Reconstructed signal: Sin', 'Input signal: Cos','Reconstructed signal: Cos');
+lgd = legend('Input signal: Dim 1','Reconstructed signal: Dim 1', 'Input signal: Dim 2','Reconstructed signal: Dim 2');
 xlabel("Time(s)")
 ylabel("Amplitude");
 GraphTitle = "Reconst, # Neurons = " + num2str(Nneuron) + ", # Spikes: " + num2str(SpikeTotalInFig) + ", lambda: " + num2str(lambda); 

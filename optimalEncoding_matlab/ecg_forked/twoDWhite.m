@@ -3,7 +3,7 @@ clear;clc;
 Nneuron= [10 20 30];
 Nx=2;       %dimesnion of the input
 
-lambda= 40:2:90;    %membrane leak
+lambda= 77;    %membrane leak
 dt=0.001;     %time step
 
 epsr=0.001;  % earning rate of the recurrent connections
@@ -22,7 +22,6 @@ for i = 1:length(Nneuron)
     Ci=-0.2*(rand(Nneuron(i),Nneuron(i)))-0.5*eye(Nneuron(i)); %the initial recurrent conectivity is very weak except for the autapses
 
     Thresh=0.5; %vector of thresholds of the neurons
-
 
     %[Fs,Cs,F,C,Decs,ErrorC(i,:)]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron(i),Nx, Thresh,Fi,Ci);
     [~,~,~,~,~,ErrorC(i,:), RMSEDec, MeanPrate(i,:)]=Learning(dt,lambda,epsr,epsf,alpha, beta, mu, Nneuron(i),Nx, Thresh,Fi,Ci);
